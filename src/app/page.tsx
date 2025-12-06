@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type DiaryResult = {
   id: string;
@@ -54,9 +55,17 @@ export default function HomePage() {
     <main className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-2xl">
         <h1 className="text-3xl font-bold mb-2">ProjectAJ</h1>
-        <p className="text-sm text-slate-400 mb-6">
-          Search your handwritten diary with AI.
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-slate-400">
+            Search your handwritten diary with AI.
+          </p>
+          <Link
+            href="/entries"
+            className="text-xs text-sky-400 hover:text-sky-300 underline transition-colors"
+          >
+            View recent entries →
+          </Link>
+        </div>
 
         <form onSubmit={handleSearch} className="flex gap-2 mb-6">
           <input
