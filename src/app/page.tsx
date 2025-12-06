@@ -1,65 +1,117 @@
-import Image from "next/image";
+// app/page.tsx
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+
+type DiaryResult = {
+  id: string;
+  diary_id: string;
+  page_number: number | null;
+  raw_text: string | null;
+  clean_text: string | null;
+  entry_date: string | null;
+  similarity: number;
+};
+
+export default function HomePage() {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<DiaryResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, matchCount: 5 }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Search failed");
+      }
+
+      const data = await res.json();
+      setResults(data.results || []);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-4 py-10">
+      <div className="w-full max-w-2xl">
+        <h1 className="text-3xl font-bold mb-2">ProjectAJ</h1>
+        <p className="text-sm text-slate-400 mb-6">
+          Search your handwritten diary with AI.
+        </p>
+
+        <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Ask about your past (e.g. 'times I felt anxious about work')"
+            className="flex-1 rounded-lg px-3 py-2 bg-slate-900 border border-slate-700 text-sm focus:outline-none focus:ring focus:ring-sky-500/40"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-lg px-4 py-2 bg-sky-500 text-sm font-medium disabled:opacity-60"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {loading ? "Searching..." : "Search"}
+          </button>
+        </form>
+
+        {error && (
+          <div className="mb-4 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {results.map((r) => {
+            const snippet =
+              (r.clean_text || r.raw_text || "").slice(0, 300) +
+              (r.clean_text && r.clean_text.length > 300 ? "..." : "");
+            const date = r.entry_date
+              ? new Date(r.entry_date).toDateString()
+              : "Unknown date";
+
+            return (
+              <div
+                key={r.id}
+                className="border border-slate-800 rounded-lg p-3 bg-slate-900/60"
+              >
+                <div className="text-xs text-slate-400 mb-1">
+                  {date}
+                  {r.page_number != null ? ` • Page ${r.page_number}` : ""}
+                  {` • Score: ${r.similarity.toFixed(3)}`}
+                </div>
+                <p className="text-sm whitespace-pre-wrap">{snippet}</p>
+              </div>
+            );
+          })}
+
+          {!loading && results.length === 0 && query && !error && (
+            <p className="text-sm text-slate-500">
+              No results. Try rephrasing your question or broadening it.
+            </p>
+          )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
+
