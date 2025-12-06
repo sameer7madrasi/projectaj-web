@@ -59,12 +59,20 @@ export default function HomePage() {
           <p className="text-sm text-slate-400">
             Search your handwritten diary with AI.
           </p>
-          <Link
-            href="/entries"
-            className="text-xs text-sky-400 hover:text-sky-300 underline transition-colors"
-          >
-            View recent entries →
-          </Link>
+          <div className="flex gap-3 text-xs">
+            <Link
+              href="/upload"
+              className="text-sky-400 hover:text-sky-300 underline transition-colors"
+            >
+              Upload page
+            </Link>
+            <Link
+              href="/entries"
+              className="text-slate-400 hover:text-slate-200 underline transition-colors"
+            >
+              Recent entries
+            </Link>
+          </div>
         </div>
 
         <form onSubmit={handleSearch} className="flex gap-2 mb-6">
