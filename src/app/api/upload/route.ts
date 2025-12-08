@@ -31,9 +31,13 @@ async function runOCR(imageDataUrl: string): Promise<string> {
           {
             type: "text",
             text:
-              "This is a scanned handwritten diary page. " +
+              "This is a scanned handwritten diary page.\n\n" +
               "Transcribe the handwriting as accurately as possible into plain text. " +
-              "Preserve the original wording. Do not summarize or add commentary.",
+              "Preserve the original wording and approximate line breaks.\n\n" +
+              "If any word or phrase is unclear or illegible, DO NOT guess. " +
+              'Instead, insert the token "<illegible>" in place of that word or phrase.\n\n' +
+              "Do not add commentary, explanations, or summaries. " +
+              "Only output the transcribed diary content.",
           },
           {
             type: "image_url",
