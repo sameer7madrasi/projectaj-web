@@ -109,14 +109,23 @@ export default function HomePage() {
             return (
               <div
                 key={r.id}
-                className="border border-slate-800 rounded-lg p-3 bg-slate-900/60"
+                className="border border-slate-800 rounded-lg bg-slate-900/60 p-4"
               >
-                <div className="text-xs text-slate-400 mb-1">
-                  {date}
-                  {r.page_number != null ? ` • Page ${r.page_number}` : ""}
-                  {` • Score: ${r.similarity.toFixed(3)}`}
-                </div>
-                <p className="text-sm whitespace-pre-wrap">{snippet}</p>
+                <Link
+                  href={`/entries/${r.id}`}
+                  className="block hover:bg-slate-800/60 rounded-md -m-2 p-2 transition-colors"
+                >
+                  <div className="text-xs text-slate-400 mb-1">
+                    {date}
+                    {r.page_number != null ? ` • Page ${r.page_number}` : ""}
+                    {` • Score: ${r.similarity.toFixed(3)}`}
+                  </div>
+                  <p className="text-sm text-slate-50 whitespace-pre-wrap">
+                    {snippet || (
+                      <span className="text-slate-500">[No text extracted]</span>
+                    )}
+                  </p>
+                </Link>
               </div>
             );
           })}

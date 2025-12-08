@@ -12,6 +12,10 @@ const DEFAULT_MATCH_COUNT = parseInt(
   10
 );
 
+const MIN_SIMILARITY = parseFloat(
+  process.env.PROJECTAJ_MIN_SIMILARITY || "0.35"
+);
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -49,7 +53,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ results: data ?? [] });
+    const rawResults = (data as any[]) || [];
+
+    // Filter out low-similarity matches
+    const filtered = rawResults.filter((row) => {
+      const sim = typeof row.similarity === "number" ? row.similarity : 0;
+      return sim >= MIN_SIMILARITY;
+    });
+
+    return NextResponse.json({ results: filtered });
   } catch (err: any) {
     console.error("Search route error:", err);
     return NextResponse.json(
