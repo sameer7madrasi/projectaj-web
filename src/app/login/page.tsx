@@ -23,18 +23,26 @@ export default function LoginPage() {
     const { allowed } = await allowRes.json();
     if (!allowed) return setError("ProjectAJ is currently private beta. You're not on the allowlist yet.");
 
-    const { error: signInError } = await supabaseBrowser.auth.signInWithOtp({
+    const redirectUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback`
+      : undefined;
+
+    console.log("Sending magic link with redirect URL:", redirectUrl);
+
+    const { error: signInError, data } = await supabaseBrowser.auth.signInWithOtp({
       email: e,
       options: {
         // must match Supabase redirect allowlist
-        emailRedirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : undefined,
+        emailRedirectTo: redirectUrl,
       },
     });
 
-    if (signInError) return setError(signInError.message);
+    if (signInError) {
+      console.error("Sign in error:", signInError);
+      return setError(signInError.message);
+    }
+
+    console.log("Magic link sent successfully. Data:", data);
 
     setStatus("Magic link sent! Check your email.");
   };

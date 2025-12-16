@@ -30,6 +30,11 @@ export async function middleware(req: NextRequest) {
 
   const path = req.nextUrl.pathname;
 
+  // Skip auth check for callback route
+  if (path.startsWith("/auth/callback")) {
+    return res;
+  }
+
   const protectedRoutes =
     path.startsWith("/upload") ||
     path.startsWith("/entries") ||
@@ -37,6 +42,7 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/api/search");
 
   if (protectedRoutes && !isAuthed) {
+    console.log(`Middleware: Blocking ${path} - user not authenticated`);
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
