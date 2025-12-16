@@ -1,7 +1,7 @@
 // app/api/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -18,6 +18,13 @@ const MIN_SIMILARITY = parseFloat(
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = supabaseServerAuthed();
+    const { data: userRes } = await supabase.auth.getUser();
+
+    if (!userRes.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const query = (body.query || "").toString().trim();
     const matchCount = body.matchCount || DEFAULT_MATCH_COUNT;
@@ -40,7 +47,7 @@ export async function POST(req: NextRequest) {
       : [[]];
 
     // 2. Call the Postgres function match_diary_pages
-    const { data, error } = await supabaseServer.rpc("match_diary_pages", {
+    const { data, error } = await supabase.rpc("match_diary_pages", {
       query_embedding: embedding,
       match_count: matchCount,
     });

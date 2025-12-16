@@ -1,5 +1,5 @@
 // app/entries/[id]/page.tsx
-import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -17,7 +17,12 @@ export const dynamic = "force-dynamic"; // always fetch fresh
 
 async function getEntryById(id: string): Promise<DiaryPage | null> {
   try {
-    const { data, error } = await supabaseServer
+    const supabase = supabaseServerAuthed();
+    const { data: userRes } = await supabase.auth.getUser();
+
+    if (!userRes.user) return null; // middleware should prevent this anyway
+
+    const { data, error } = await supabase
       .from("diary_pages")
       .select(
         "id, entry_date, page_number, created_at, source_file_name, clean_text, raw_text"

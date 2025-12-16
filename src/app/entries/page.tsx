@@ -1,5 +1,5 @@
 // app/entries/page.tsx
-import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
 import Link from "next/link";
 
 type DiaryPage = {
@@ -14,7 +14,12 @@ type DiaryPage = {
 export const dynamic = "force-dynamic"; // always fetch fresh
 
 async function getRecentEntries(limit = 20): Promise<DiaryPage[]> {
-  const { data, error } = await supabaseServer
+  const supabase = supabaseServerAuthed();
+  const { data: userRes } = await supabase.auth.getUser();
+
+  if (!userRes.user) return []; // middleware should prevent this anyway
+
+  const { data, error } = await supabase
     .from("diary_pages")
     .select("id, entry_date, page_number, created_at, clean_text, raw_text")
     .order("entry_date", { ascending: false })

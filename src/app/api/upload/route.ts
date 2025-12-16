@@ -2,14 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
 import { randomUUID } from "crypto";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const USER_ID = process.env.PROJECTAJ_USER_ID!;
-const MAIN_DIARY_ID = process.env.PROJECTAJ_MAIN_DIARY_ID!;
 const BUCKET_NAME = "diary-pages";
 
 async function fileToDataUrl(file: File): Promise<{ buffer: Buffer; dataUrl: string }> {
@@ -69,6 +68,46 @@ async function createEmbedding(text: string): Promise<number[]> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get authenticated user
+    const supabase = supabaseServerAuthed();
+    const { data: userRes } = await supabase.auth.getUser();
+
+    if (!userRes.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = userRes.user.id;
+
+    // Find or create diary for this user
+    const { data: diaryData, error: diaryError } = await supabase
+      .from("diaries")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    let diaryId: string;
+
+    if (diaryError || !diaryData) {
+      // Create new diary for user
+      const { data: newDiary, error: createError } = await supabase
+        .from("diaries")
+        .insert({ user_id: userId })
+        .select("id")
+        .single();
+
+      if (createError || !newDiary) {
+        console.error("Error creating diary:", createError);
+        return NextResponse.json(
+          { error: "Failed to create diary" },
+          { status: 500 }
+        );
+      }
+
+      diaryId = newDiary.id;
+    } else {
+      diaryId = diaryData.id;
+    }
+
     const formData = await req.formData();
 
     const file = formData.get("file") as File | null;
@@ -92,10 +131,10 @@ export async function POST(req: NextRequest) {
     // 1) Convert to buffer + data URL
     const { buffer, dataUrl } = await fileToDataUrl(file);
 
-    // 2) Upload to Supabase Storage
+    // 2) Upload to Supabase Storage (using service role for now)
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const safeName = file.name.replace(/\s+/g, "_");
-    const objectPath = `${USER_ID}/${Date.now()}-${randomUUID()}.${ext}`;
+    const objectPath = `${userId}/${Date.now()}-${randomUUID()}.${ext}`;
 
     const { error: storageError } = await supabaseServer.storage
       .from(BUCKET_NAME)
@@ -127,12 +166,12 @@ export async function POST(req: NextRequest) {
         ? parseInt(pageNumberStr, 10)
         : null;
 
-    // 6) Insert into diary_pages
-    const { data, error: insertError } = await supabaseServer
+    // 6) Insert into diary_pages (using authenticated client)
+    const { data, error: insertError } = await supabase
       .from("diary_pages")
       .insert({
-        user_id: USER_ID,
-        diary_id: MAIN_DIARY_ID,
+        user_id: userId,
+        diary_id: diaryId,
         page_number: pageNumber,
         source_file_name: file.name,
         image_path: objectPath,
