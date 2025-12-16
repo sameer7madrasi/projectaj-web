@@ -69,7 +69,7 @@ async function createEmbedding(text: string): Promise<number[]> {
 export async function POST(req: NextRequest) {
   try {
     // Get authenticated user
-    const supabase = supabaseServerAuthed();
+    const supabase = await supabaseServerAuthed();
     const { data: userRes } = await supabase.auth.getUser();
 
     if (!userRes.user) {

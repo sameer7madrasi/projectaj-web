@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic"; // always fetch fresh
 
 async function getEntryById(id: string): Promise<DiaryPage | null> {
   try {
-    const supabase = supabaseServerAuthed();
+    const supabase = await supabaseServerAuthed();
     const { data: userRes } = await supabase.auth.getUser();
 
     if (!userRes.user) return null; // middleware should prevent this anyway

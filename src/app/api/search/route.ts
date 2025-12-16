@@ -18,7 +18,7 @@ const MIN_SIMILARITY = parseFloat(
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = supabaseServerAuthed();
+    const supabase = await supabaseServerAuthed();
     const { data: userRes } = await supabase.auth.getUser();
 
     if (!userRes.user) {

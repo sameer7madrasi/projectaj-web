@@ -14,7 +14,7 @@ type DiaryPage = {
 export const dynamic = "force-dynamic"; // always fetch fresh
 
 async function getRecentEntries(limit = 20): Promise<DiaryPage[]> {
-  const supabase = supabaseServerAuthed();
+  const supabase = await supabaseServerAuthed();
   const { data: userRes } = await supabase.auth.getUser();
 
   if (!userRes.user) return []; // middleware should prevent this anyway
