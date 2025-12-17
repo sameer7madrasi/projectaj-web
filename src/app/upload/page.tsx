@@ -1,55 +1,176 @@
 // app/upload/page.tsx
 "use client";
 
-import { FormEvent, useState } from "react";
+import type { FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
+type UploadStatus = "queued" | "uploading" | "done" | "failed";
+
+type UploadItem = {
+  id: string;
+  file: File;
+  status: UploadStatus;
+  message?: string;
+  entryId?: string;
+};
+
 export default function UploadPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [items, setItems] = useState<UploadItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [entryDate, setEntryDate] = useState<string>("");
   const [pageNumber, setPageNumber] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const total = items.length;
+  const doneCount = items.filter((i) => i.status === "done").length;
+  const failedCount = items.filter((i) => i.status === "failed").length;
+  const uploadingCount = items.filter((i) => i.status === "uploading").length;
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = Array.from(e.target.files || []);
+    if (fileList.length === 0) return;
+
+    const newItems: UploadItem[] = fileList.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      status: "queued",
+    }));
+
+    setItems(newItems);
+
+    // (Optional) reset input so selecting same files again works
+    e.target.value = "";
+  };
+
+  const uploadSingleFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (entryDate) formData.append("entryDate", entryDate);
+    if (pageNumber) formData.append("pageNumber", pageNumber);
+
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+    return json.entryId || json.id;
+  };
+
+  const uploadAll = async () => {
+    if (items.length === 0) return;
+    setIsUploading(true);
+
+    for (const item of items) {
+      // mark uploading
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === item.id ? { ...p, status: "uploading", message: "" } : p
+        )
+      );
+
+      try {
+        const entryId = await uploadSingleFile(item.file);
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === item.id
+              ? { ...p, status: "done", entryId, message: "Uploaded" }
+              : p
+          )
+        );
+      } catch (err: any) {
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === item.id
+              ? {
+                  ...p,
+                  status: "failed",
+                  message: err?.message || "Upload failed",
+                }
+              : p
+          )
+        );
+      }
+    }
+
+    setIsUploading(false);
+  };
+
+  const retryFailed = async () => {
+    const failed = items.filter((i) => i.status === "failed");
+    if (failed.length === 0) return;
+
+    setIsUploading(true);
+
+    for (const item of failed) {
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === item.id ? { ...p, status: "uploading", message: "" } : p
+        )
+      );
+
+      try {
+        const entryId = await uploadSingleFile(item.file);
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === item.id
+              ? { ...p, status: "done", entryId, message: "Uploaded" }
+              : p
+          )
+        );
+      } catch (err: any) {
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === item.id
+              ? {
+                  ...p,
+                  status: "failed",
+                  message: err?.message || "Upload failed",
+                }
+              : p
+          )
+        );
+      }
+    }
+
+    setIsUploading(false);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
     setError(null);
 
-    if (!file) {
-      setError("Please select an image file.");
+    if (items.length === 0) {
+      setError("Please select one or more image files.");
       return;
     }
 
-    setLoading(true);
-
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (entryDate) formData.append("entryDate", entryDate);
-      if (pageNumber) formData.append("pageNumber", pageNumber);
+      // reset statuses
+      setItems((prev) =>
+        prev.map((it) => ({
+          ...it,
+          status: "queued",
+          message: undefined,
+          entryId: undefined,
+        }))
+      );
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Upload failed");
-      }
-
-      setMessage("Upload complete! Entry created.");
-      setFile(null);
+      await uploadAll();
+      setMessage("Upload complete!");
       setEntryDate("");
       setPageNumber("");
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Something went wrong.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -86,10 +207,8 @@ export default function UploadPage() {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0] || null;
-                setFile(f);
-              }}
+              multiple
+              onChange={handleFilesSelected}
               className="block w-full text-sm text-slate-200
                          file:mr-4 file:py-2 file:px-4
                          file:rounded-md file:border-0
@@ -125,13 +244,63 @@ export default function UploadPage() {
           </div>
 
           <button
-            type="submit"
-            disabled={loading}
+            type="button"
+            onClick={uploadAll}
+            disabled={isUploading || items.length === 0}
             className="rounded-lg px-4 py-2 bg-sky-500 text-sm font-medium disabled:opacity-60 hover:bg-sky-600 transition-colors"
           >
-            {loading ? "Processing..." : "Upload & Ingest"}
+            {isUploading ? "Uploading..." : "Upload"}
           </button>
         </form>
+
+        {total > 0 && (
+          <div className="mt-4 text-sm text-slate-300 flex items-center gap-2">
+            <span>
+              {doneCount} / {total} uploaded
+              {failedCount > 0 ? ` • ${failedCount} failed` : ""}
+            </span>
+            {isUploading && (
+              <span className="inline-block animate-spin">⏳</span>
+            )}
+          </div>
+        )}
+
+        {failedCount > 0 && !isUploading && (
+          <button
+            onClick={retryFailed}
+            className="mt-3 rounded-lg px-3 py-2 bg-slate-800 border border-slate-700 text-xs font-medium hover:bg-slate-700 transition-colors"
+          >
+            Retry failed
+          </button>
+        )}
+
+        {items.length > 0 && (
+          <div className="mt-4 rounded-lg border border-slate-800 overflow-hidden">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between px-3 py-2 border-b border-slate-800 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm text-slate-100 truncate">{item.file.name}</div>
+                  {item.message && (
+                    <div className="text-xs text-slate-400">{item.message}</div>
+                  )}
+                </div>
+                <div className="text-xs">
+                  {item.status === "queued" && <span className="text-slate-400">Queued</span>}
+                  {item.status === "uploading" && (
+                    <span className="text-sky-400 flex items-center gap-1">
+                      <span className="animate-spin">⏳</span> Uploading
+                    </span>
+                  )}
+                  {item.status === "done" && <span className="text-emerald-400">Done</span>}
+                  {item.status === "failed" && <span className="text-red-400">Failed</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {message && (
           <p className="mt-4 text-sm text-emerald-400">{message}</p>

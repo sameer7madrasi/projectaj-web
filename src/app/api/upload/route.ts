@@ -191,14 +191,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        id: data?.id,
-        message: "Entry created successfully",
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ entryId: data?.id }, { status: 200 });
   } catch (err: any) {
     console.error("Upload route error:", err);
     return NextResponse.json(
