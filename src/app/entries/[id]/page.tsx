@@ -2,6 +2,7 @@
 import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import EditEntryPanel from "@/components/EditEntryPanel";
 
 type DiaryPage = {
   id: string;
@@ -93,17 +94,18 @@ export default async function EntryPage({ params }: EntryPageProps) {
           </div>
         </header>
 
-        <section className="border border-slate-800 rounded-lg bg-slate-900/60 p-4">
-          {text ? (
-            <pre className="whitespace-pre-wrap text-sm leading-relaxed text-slate-50">
-              {text}
-            </pre>
-          ) : (
+        {text ? (
+          <EditEntryPanel
+            entryId={entry.id}
+            initialText={entry.clean_text || entry.raw_text || ""}
+          />
+        ) : (
+          <section className="border border-slate-800 rounded-lg bg-slate-900/60 p-4">
             <p className="text-sm text-slate-500">
               No text available for this entry.
             </p>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </main>
   );

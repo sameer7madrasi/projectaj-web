@@ -156,8 +156,9 @@ export async function POST(req: NextRequest) {
     const rawText = await runOCR(dataUrl);
     const cleanText = rawText.trim();
 
-    // 4) Create embedding
-    const embedding = await createEmbedding(cleanText || rawText);
+    // 4) Create embedding from clean_text (fallback to raw_text only if clean_text is empty)
+    const textForEmbedding = cleanText || rawText;
+    const embedding = await createEmbedding(textForEmbedding);
 
     // 5) Parse metadata
     const entryDate = entryDateStr && entryDateStr.length > 0 ? entryDateStr : null;
