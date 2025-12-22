@@ -1,0 +1,13 @@
+src/app/entries/[id]/page.tsx
+src/app/entries/page.tsx
+src/app/auth/callback/page.tsx
+src/app/about/page.tsx
+src/app/layout.tsx
+src/app/api/entries/[id]/route.ts
+src/app/api/auth/callback/route.ts
+src/app/api/search/route.ts
+src/app/api/is-allowed/route.ts
+src/app/api/upload/route.ts
+src/app/page.tsx
+src/app/login/page.tsx
+src/app/upload/page.tsx
