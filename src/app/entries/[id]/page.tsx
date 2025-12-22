@@ -3,6 +3,7 @@ import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import EditEntryPanel from "@/components/EditEntryPanel";
+import DeleteEntryButton from "@/components/DeleteEntryButton";
 
 type DiaryPage = {
   id: string;
@@ -95,15 +96,19 @@ export default async function EntryPage({ params }: EntryPageProps) {
         </header>
 
         {text ? (
-          <EditEntryPanel
-            entryId={entry.id}
-            initialText={entry.clean_text || entry.raw_text || ""}
-          />
+          <>
+            <EditEntryPanel
+              entryId={entry.id}
+              initialText={entry.clean_text || entry.raw_text || ""}
+            />
+            <DeleteEntryButton entryId={entry.id} />
+          </>
         ) : (
           <section className="border border-slate-800 rounded-lg bg-slate-900/60 p-4">
             <p className="text-sm text-slate-500">
               No text available for this entry.
             </p>
+            <DeleteEntryButton entryId={entry.id} />
           </section>
         )}
       </div>
