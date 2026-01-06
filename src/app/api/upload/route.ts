@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { supabaseServerAuthed } from "@/lib/supabaseServerAuthed";
+import { segmentDiaryText, type Segment } from "@/lib/segmentDiaryText";
 import { randomUUID } from "crypto";
 
 const openai = new OpenAI({
@@ -192,7 +193,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ entryId: data?.id }, { status: 200 });
+    const pageId = data?.id;
+    if (!pageId) {
+      return NextResponse.json(
+        { error: "Failed to get page ID after insert" },
+        { status: 500 }
+      );
+    }
+
+    // 7) Segment the text and insert multiple segments
+    const segments = segmentDiaryText(cleanText || rawText, entryDate ?? null);
+
+    if (segments.length === 0) {
+      // No segments to insert (shouldn't happen, but handle gracefully)
+      return NextResponse.json({ entryId: pageId }, { status: 200 });
+    }
+
+    // Batch create embeddings for all segments
+    const segmentTexts = segments.map((seg) => seg.text);
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: segmentTexts,
+    });
+
+    // Build rows for batch insert
+    const rows: any[] = [];
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const embedding = embeddingResponse.data[i]?.embedding;
+      
+      if (!embedding) {
+        console.error(`Failed to get embedding for segment ${i}`);
+        return NextResponse.json(
+          { error: `Failed to generate embedding for segment ${i}` },
+          { status: 500 }
+        );
+      }
+
+      rows.push({
+        user_id: userId,
+        diary_id: diaryId,
+        page_id: pageId,
+        segment_index: seg.segment_index,
+        segment_date: seg.segment_date,
+        text: seg.text,
+        embedding: embedding,
+      });
+    }
+
+    // Batch insert all segments
+    const { error: segErr } = await supabase
+      .from("diary_segments")
+      .insert(rows);
+
+    if (segErr) {
+      console.error("Segment insert error:", segErr);
+      return NextResponse.json(
+        { error: segErr.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ entryId: pageId }, { status: 200 });
   } catch (err: any) {
     console.error("Upload route error:", err);
     return NextResponse.json(
