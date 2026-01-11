@@ -7,11 +7,9 @@ import Link from "next/link";
 
 type DiaryResult = {
   id: string;
-  diary_id: string;
-  page_number: number | null;
-  raw_text: string | null;
-  clean_text: string | null;
-  entry_date: string | null;
+  page_id: string;
+  segment_date: string | null;
+  text: string;
   similarity: number;
 };
 
@@ -119,11 +117,8 @@ export default function HomePage() {
           {/* Search results */}
           <div className="space-y-4">
             {results.map((r) => {
-              const snippet =
-                (r.clean_text || r.raw_text || "").slice(0, 300) +
-                (r.clean_text && r.clean_text.length > 300 ? "..." : "");
-              const date = r.entry_date
-                ? new Date(r.entry_date).toDateString()
+              const date = r.segment_date
+                ? new Date(r.segment_date).toDateString()
                 : "Unknown date";
 
               return (
@@ -132,19 +127,17 @@ export default function HomePage() {
                   className="border border-slate-800 rounded-lg bg-slate-900/60 p-4"
                 >
                   <Link
-                    href={`/entries/${r.id}`}
+                    href={`/entries/${r.page_id}`}
                     className="block hover:bg-slate-800/60 rounded-md -m-2 p-2 transition-colors"
                   >
                     <div className="text-xs text-slate-400 mb-1">
                       {date}
-                      {r.page_number != null ? ` • Page ${r.page_number}` : ""}
-                      {` • Score: ${r.similarity.toFixed(3)}`}
+                      {" · "}
+                      {(r.similarity ?? 0).toFixed(3)}
                     </div>
-                    <p className="text-sm text-slate-50 whitespace-pre-wrap">
-                      {snippet || (
-                        <span className="text-slate-500">[No text extracted]</span>
-                      )}
-                    </p>
+                    <pre className="whitespace-pre-wrap text-sm text-slate-100">
+                      {r.text}
+                    </pre>
                   </Link>
                 </div>
               );
